@@ -3,27 +3,17 @@
 # Define the local subnet we want to advertise
 SUBNET="192.168.178.0/24"
 
-echo "Starting Tailscale installation and configuration..."
+NETDEV=$(ip -o route get 8.8.8.8 | cut -f 5 -d " ")
+sudo ethtool -K $NETDEV rx-udp-gro-forwarding on rx-gro-list off
 
-# --- 1. Installation ---
-echo "1. Installing Tailscale..."
-# Add Tailscale key and repository, then install
-curl -fsSL https://tailscale.com/install.sh | sh
+printf '#!/bin/sh\n\nethtool -K %s rx-udp-gro-forwarding on rx-gro-list off \n' "$(ip -o route get 8.8.8.8 | cut -f 5 -d " ")" | sudo tee /etc/networkd-dispatcher/routable.d/50-tailscale
+sudo chmod 755 /etc/networkd-dispatcher/routable.d/50-tailscale
 
-# --- 2. Enable IP Forwarding ---
-echo "2. Enabling IP Forwarding for routing..."
-# This is crucial for both Exit Node and Subnet Router functionality
-# Enable IPv4 forwarding
-if ! grep -q 'net.ipv4.ip_forward = 1' /etc/sysctl.conf; then
-    echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.conf
-fi
-# Enable IPv6 forwarding
-if ! grep -q 'net.ipv6.conf.all.forwarding = 1' /etc/sysctl.conf; then
-    echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.conf
-fi
 
-# Apply the changes immediately
-sudo sysctl -p
+sudo /etc/networkd-dispatcher/routable.d/50-tailscale
+test $? -eq 0 || echo 'An error occurred.'
+
+
 
 # --- 3. Start Tailscale and Advertise Routes ---
 echo "3. Starting Tailscale and advertising routes and exit node status."
