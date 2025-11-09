@@ -3,6 +3,8 @@
 # Define the local subnet we want to advertise
 SUBNET="192.168.178.0/24"
 
+echo "v2 running"
+
 NETDEV=$(ip -o route get 8.8.8.8 | cut -f 5 -d " ")
 sudo ethtool -K $NETDEV rx-udp-gro-forwarding on rx-gro-list off
 
